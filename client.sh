@@ -34,8 +34,8 @@ echo "export PATH=$PATH:$HOME/.poetry/bin"                             >>~/.bash
 pip3 install schedule
 pip3 install behave
 
-sudo wget https://github.com/Alex225320/client-pyton-app/blob/main/client-app.TAR
-sudo wget https://github.com/Alex225320/client-pyton-app/blob/main/collectl-4.3.1.src.tar
+sudo wget https://github.com/Alex225320/client-pyton-app/raw/main/client-app.TAR
+sudo wget https://github.com/Alex225320/client-pyton-app/raw/main/collectl-4.3.1.src.tar
 
 sudo tar -xvf client-app.tar
 sudo tar -xvf collectl-4.3.1.src.tar
