@@ -1,3 +1,5 @@
+#!/bin/bash
+
 #install all pre-requisities
 sudo apt update
 sudo apt-get -y install software-properties-common
