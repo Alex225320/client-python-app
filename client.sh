@@ -33,15 +33,20 @@ echo "# env"                                                           >>~/.bash
 echo "POETRY_VERSION=1.1.4"                                            >>~/.bashrc
 echo "export PATH=$PATH:$HOME/.poetry/bin"                             >>~/.bashrc
 
-pip3 install schedule
-pip3 install behave
+pip3 install -y schedule
+pip3 install -y behave
 
-sudo wget https://github.com/Alex225320/client-pyton-app/raw/main/client-app.TAR
+sudo mkdir /home/vagrant/app/
+sudo chmod 777 -R /home/vagrant/app/
+sudo cd /home/vagrant/app/
+
+sudo wget https://github.com/Alex225320/client-pyton-app/raw/main/client-app.tar
 sudo wget https://github.com/Alex225320/client-pyton-app/raw/main/collectl-4.3.1.src.tar
 
 sudo tar -xvf client-app.tar
 sudo tar -xvf collectl-4.3.1.src.tar
-sudo collectl-4.3.1/INSTALL
+sudo chmod 777 -R /home/vagrant/app/
+sudo bash collectl-4.3.1/INSTALL
 
 sudo rm -R collectl-4.3.1
 sudo rm -R collectl-4.3.1.src.tar
