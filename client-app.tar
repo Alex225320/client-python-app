@@ -1,0 +1,420 @@
+features/000755 000000000001412033570000062755ustar  features/manage_data.feature000644 000000010231411767504000121010ustar  Feature: Collecting and sending metrics in database
+  
+  Background: requirement of this test
+    Given we have collectl tool installed
+
+  Scenario: collect and save data at specific destination
+     Given <destination>
+       | destination |
+       | default     |
+       | database    |
+       | S3
+      When we run script
+      Then we can see collected data processed with an <action> as a result
+       | action                          |
+       | organized in a specific format  |
+       | saved at a given destination    |
+features/steps/000755 000000000001412033570000074335ustar  features/steps/manage_data_steps.py000644 000000027141411767504000134620ustar  import argparse
+from behave import *
+import data_handler
+import subprocess
+
+def before_feature(context, feature):   
+    try:
+        output = subprocess.check_output(["which collectl"], stderr=subprocess.STDOUT,
+                                         timeout=360, encoding="UTF-8", shell=True)
+    except subprocess.CalledProcessError:
+        raise 
+    assert output
+
+@given('{destination}')
+def step_impl(context, destination):
+    context.destination = destination.lower()
+
+@when('we run script')
+def step_impl(context):
+    parser = argparse.ArgumentParser()
+    args = parser.parse_args()
+    args.test = True
+    context.metricsDataHandler = data_handler.MetricsDataHandler(args)    
+    context.collectedData = context.metricsDataHandler.collectData()
+    assert(context.collectedData)
+    if context.destination == "database":
+        context.metricsDataHandler.saveDataToDB(context.collectedData)
+    if context.destination == "s3":
+        context.metricsDataHandler.saveDataToS3(context.collectedData)
+
+@then('we can see collected data processed with an {action} as a result')
+def step_impl(context, action):
+    if action.lower().startswith("organized"):
+        assert(context.scriptOutput is dict)
+    if action.lower().startswith("saved"):
+        if context.destination == "database":
+            # TODO: verify data is present in database
+            pass
+        elif context.destination == "s3":
+            # TODO: verify data is present in S3
+            passdata_handler.py000644 000000327641411767504000074650ustar  #/usr/bin/python3
+"""
+
+Copyright ***
+
+Functionality:
+
+Dependencies:
+
+
+Example of a run command:
+ python3 data_handler.py -T
+
+Detailed steps:
+1. ...
+"""
+
+import argparse
+import datetime
+import json
+import logging
+import requests
+import schedule
+import time
+import subprocess
+# import psycopg2
+from configparser import ConfigParser
+# from config import config
+
+import requests
+import logging
+
+# These two lines enable debugging at httplib level (requests->urllib3->http.client)
+# You will see the REQUEST, including HEADERS and DATA, and RESPONSE with HEADERS but without DATA.
+# The only thing missing will be the response.body which is not logged.
+try:
+    import http.client as http_client
+except ImportError:
+    # Python 2
+    import httplib as http_client
+http_client.HTTPConnection.debuglevel = 1
+
+# You must initialize logging, otherwise you'll not see debug output.
+logging.basicConfig()
+logging.getLogger().setLevel(logging.DEBUG)
+requests_log = logging.getLogger("requests.packages.urllib3")
+requests_log.setLevel(logging.DEBUG)
+requests_log.propagate = True
+
+# CONSTANTS:
+URL = "http://localhost/api/insert-data-devices.php"
+HEADERS = {"Content-type": "application/json", "Accept": "text/plain"}
+CHECK_OUTPUT_TIMEOUT = 360
+COLLECTL_CMD = "collectl -scmd -w -c1" # collect CPU, mem, disks, single sample, wide output (no K/M/G)
+
+# QUESTIONS:
+# - who and when creates initial table(s) / bucket
+# - do we need any maintenance (delete outdated data, etc.)
+# - measurements ids mapping
+# TODO: retrieve from Measurements table with IDs/units
+MEASUREMENT_ID_CPU = 1
+MEASUREMENT_ID_CPU_SYS = 2
+MEASUREMENT_ID_MEM_FREE = 3
+MEASUREMENT_ID_MEM_CACH = 4
+MEASUREMENT_ID_MEM_INAC = 5
+MEASUREMENT_ID_KBREAD = 6
+MEASUREMENT_ID_READS = 7
+MEASUREMENT_ID_KBWRIT = 8
+MEASUREMENT_ID_WRITES = 9
+
+class MetricsDataHandler(object):
+    """ """
+
+    def __init__(self, args):
+        self.args = args
+        
+    # TODO
+    def getMeasurementID(self, name):
+        """Retrieve ID from Measurements table with IDs/units
+
+        Args:
+            name (string): measurement name
+
+        Returns:
+            integer: measurement ID
+        """
+        if name.lower() == "cpu":
+            return MEASUREMENT_ID_CPU
+        elif name.lower() == "cpu_sys":
+            return MEASUREMENT_ID_CPU_SYS
+        elif name.lower() == "mem_free":
+            return MEASUREMENT_ID_MEM_FREE
+        elif name.lower() == "mem_cach":
+            return MEASUREMENT_ID_MEM_CACH
+        elif name.lower() == "mem_inac":
+            return MEASUREMENT_ID_MEM_INAC
+        elif name.lower() == "disk_kbread":
+            return MEASUREMENT_ID_KBREAD
+        elif name.lower() == "disk_reads":
+            return MEASUREMENT_ID_READS
+        elif name.lower() == "disk_kbwrit":
+            return MEASUREMENT_ID_KBWRIT
+        elif name.lower() == "disk_writes":
+            return MEASUREMENT_ID_WRITES
+        else:
+            raise Exception("No measurement named {0} found".format(name))
+
+    def saveDataToS3(self, datetime, ObjectID, MeasurementID, MeasurementValue, MetaData):
+        """Save given data into S3 bucket.
+
+        Args:
+            datetime ([type]): [description]
+            ObjectID ([type]): [description]
+            MeasurementID ([type]): [description]
+            MeasurementValue ([type]): [description]
+            MetaData ([type]): [description] # JSONB
+        """
+        # TODO
+        return
+        
+    def getDataFromS3(self):
+        # TODO
+        return
+
+    def saveDataToDB(self, data):
+        """Save given data into database.
+
+        Args:
+            data (dict): [description] data to be saved
+        """
+        # TODO
+        # sql = """INSERT INTO some_table(some_sata) VALUES(%s) RETURNING return_id;"""
+        # conn = None
+        return_id = None
+        # try:
+        #     # TODO
+        #     conn = psycopg2.connect(**self.db_params)
+        #     # create a new cursor
+        #     cur = conn.cursor()
+        #     cur.execute(sql, (data,)) # TODO
+        #     # get the generated id back
+        #     return_id = cur.fetchone()[0]
+        #     conn.commit()
+        #     cur.close()
+        # except (Exception, psycopg2.DatabaseError) as error:
+        #     print(error)
+        #     raise
+        # finally:
+        #     if conn is not None:
+        #         conn.close()
+        
+        response = requests.post(URL, data=json.dumps(data))#, headers=HEADERS)
+        print("Post to DB response:\n", response)
+        # if response.status_code != 200:
+        #     raise Exception("Failure to save data")
+        # logging.info("Data has been successfully saved to database:\n", return_id)
+        # print("Data has been successfully saved to database:\n", return_id)
+
+        return return_id
+
+    # def getDataFromDB(self):
+    #     # TODO
+    #     sql = """SELECT some_id, some_name FROM some_table ORDER BY some_param;"""
+    #     conn = None
+    #     try:
+    #         # TODO
+    #         conn = psycopg2.connect(**self.db_params)
+    #         cur = conn.cursor()
+    #         cur.execute(sql)
+
+    #         # TODO: store retrieved data
+    #         row = cur.fetchone()
+    #         while row is not None:
+    #             print(row)
+    #             row = cur.fetchone()
+
+    #         cur.close()
+    #     except (Exception, psycopg2.DatabaseError) as error:
+    #         print(error)
+    #         raise
+    #     finally:
+    #         if conn is not None:
+    #             conn.close() 
+    #     return # data       
+
+    def getDBConfig(self, filename="database.ini", section="postgresql"):
+        parser = ConfigParser()
+        parser.read(filename)
+
+        db = {}
+        if parser.has_section(section):
+            params = parser.items(section)
+            for param in params:
+                db[param[0]] = param[1]
+        else:
+            raise Exception("Section {0} not found in the {1} file".format(section, filename))
+
+        self.db_params = db
+        
+    # def createTable(self, table_name):
+    #     """Create measurements table(s) in the PostgreSQL database"""
+    #     # TODO: define keys and data types
+    #     command = (
+    #         """
+    #         CREATE TABLE measurements (
+    #                 object_id VARCHAR(255) NOT NULL,
+    #                 measurement_id VARCHAR(255) PRIMARY KEY,
+    #                 measurement_value INTEGER NOT NULL,
+    #                 datetime timestamp default NULL,
+    #                 metadata jsonb
+    #         )
+    #         """)
+    #     conn = None
+    #     try:
+    #         conn = psycopg2.connect(**self.db_params)
+    #         cur = conn.cursor()
+    #         cur.execute(command)
+    #         cur.close()
+    #         conn.commit()
+    #     except (Exception, psycopg2.DatabaseError) as error:
+    #         print(error)
+    #     finally:
+    #         if conn is not None:
+    #             conn.close()
+        
+    def collectAndSendData(self):
+        """Collect CPU, memory, disc, network, etc. data using collectl and save it to the appropriate destination"""
+        data = self.collectData()
+        if self.args.test: # or self.args.location in ["DB", "db"]:
+            # self.getDBConfig()
+            self.saveDataToDB(data)
+        else: # self.args.location in ["S3", "s3"]:
+            # if os.environ.get("AWS_ACCESS_KEY_ID"):
+            #     default_aws_access_key = os.environ.get("AWS_ACCESS_KEY_ID")
+
+            # if os.environ.get("AWS_SECRET_ACCESS_KEY") is None:
+            #     default_aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
+            
+            self.saveDataToS3(data)
+
+    def collectData(self):
+        """Collect CPU, memory, disc, network, etc. data using collectl"""   
+        # collect data from collectl and parse the output
+        # vagrant@vagrant:/vagrant/dev/measurements/collectl-3.7.3$ collectl -scmd -w -c1
+        # waiting for 1 second sample...
+        # #<--------CPU--------><-----------Memory-----------><----------Disks----------->
+        # #cpu sys inter  ctxsw Free Buff Cach Inac Slab  Map KBRead  Reads KBWrit Writes 
+        #    0   0   160    227 4226672 190224 3122468 2578476 390916 315844      0      0      0      0 
+        try:
+            output = subprocess.check_output([COLLECTL_CMD], stderr=subprocess.STDOUT,
+                                             timeout=CHECK_OUTPUT_TIMEOUT, encoding="UTF-8",
+                                             shell=True)
+            logging.info(output)
+            print("Collectl output:\n", output)
+            if output:
+                rows = output.strip().split("\n")
+                if len(rows) != 4:
+                    raise Exception("Unexpected output")
+
+                values = rows[-1].split()
+                if len(values) != 14:
+                    raise Exception("Unexpected output")
+                
+                cpu = values[0].strip()
+                cpu_sys = values[1].strip()
+                mem_free = values[4].strip()
+                mem_cach = values[6].strip()
+                mem_inac = values[7].strip()
+                disk_kbread = values[10].strip()
+                disk_reads = values[11].strip()
+                disk_kbwrit = values[12].strip()
+                disk_writes = values[13].strip()
+            else:
+                raise Exception("Failure to collect data")
+        except subprocess.CalledProcessError as err:
+            if err.output: 
+                logging.info(err.output)
+            raise
+        
+        time_now_sec = int(time.mktime(datetime.datetime.now().timetuple()))
+
+        # TODO: ObjectID/Metadata
+        data = {"prefix": "test",
+                "data":[
+                    {"datetime": time_now_sec,
+                     "ObjectID": "ab:cd:ef:12:34",
+                     "MeasurementID": MEASUREMENT_ID_CPU,
+                     "MeasurementValue": int(cpu),
+                     "MetaData": "{\"info_10\":\"info1\",\"info_11\":\"info\",\"info_13\":\"info\",\"info_14\":\"info\"}"},
+                    {"datetime": time_now_sec,
+                     "ObjectID": "mac_addr",
+                     "MeasurementID": MEASUREMENT_ID_CPU_SYS,
+                     "MeasurementValue": int(cpu_sys),
+                     "MetaData": "{\"info_20\":\"info1\",\"info_21\":\"info\",\"info_23\":\"info\",\"info_24\":\"info\"}"},
+                    {"datetime": time_now_sec,
+                     "ObjectID": "mac_addr",
+                     "MeasurementID": MEASUREMENT_ID_MEM_FREE,
+                     "MeasurementValue": int(mem_free),
+                     "MetaData": "{\"info_30\":\"info1\",\"info_31\":\"info\",\"info_33\":\"info\",\"info_34\":\"info\"}"},
+                    {"datetime": time_now_sec,
+                     "ObjectID": "mac_addr",
+                     "MeasurementID": MEASUREMENT_ID_MEM_CACH,
+                     "MeasurementValue": int(mem_cach),
+                     "MetaData": "{\"info_40\":\"info1\",\"info_41\":\"info\",\"info_43\":\"info\",\"info_44\":\"info\"}"},
+                    {"datetime": time_now_sec,
+                     "ObjectID": "mac_addr",
+                     "MeasurementID": MEASUREMENT_ID_MEM_INAC,
+                     "MeasurementValue": int(mem_inac),
+                     "MetaData": "{\"info_50\":\"info1\",\"info_51\":\"info\",\"info_53\":\"info\",\"info_54\":\"info\"}"},
+                    {"datetime": time_now_sec,
+                     "ObjectID": "mac_addr",
+                     "MeasurementID": MEASUREMENT_ID_KBREAD,
+                     "MeasurementValue": int(disk_kbread), 
+                     "MetaData": "{\"info_60\":\"info1\",\"info_61\":\"info\",\"info_63\":\"info\",\"info_64\":\"info\"}"},
+                    {"datetime": time_now_sec,
+                     "ObjectID": "mac_addr",
+                     "MeasurementID": MEASUREMENT_ID_READS,
+                     "MeasurementValue": int(disk_reads),
+                     "MetaData": "{\"info_70\":\"info1\",\"info_71\":\"info\",\"info_73\":\"info\",\"info_74\":\"info\"}"},
+                    {"datetime": time_now_sec,
+                     "ObjectID": "mac_addr",
+                     "MeasurementID": MEASUREMENT_ID_KBWRIT,
+                     "MeasurementValue": int(disk_kbwrit),
+                     "MetaData":"{\"info_80\":\"info1\",\"info_81\":\"info\",\"info_83\":\"info\",\"info_84\":\"info\"}"},
+                    {"datetime": time_now_sec,
+                     "ObjectID": "mac_addr",
+                     "MeasurementID": MEASUREMENT_ID_WRITES,
+                     "MeasurementValue": int(disk_writes),
+                     "MetaData": "{}"}
+                    ]
+                }
+        print("The following data has been collected:\n", data)
+        return data
+
+        
+def main():
+    parser = argparse.ArgumentParser(description="Collect metrics data every 1 min and save to desired destination")
+    parser.add_argument(
+        "-T", "--test", action="store_true", help="Collect some data and save to database, once")
+    parser.add_argument(
+        "-S", "--schedule", action="store_true", help="Start collecting data and save it to database every minute")
+    # parser.add_argument(
+    #     "-A", "--action", choices=["save", "get"], help="Save or get data")
+    # parser.add_argument(
+    #     "-L", "--location", choices=["S3", "s3", "DB", "db"], help="Data location (S3 or DB)")
+
+    args = parser.parse_args()
+    # assert(args.SOME_name and args.OTHER_name), "Some/all input parameters are not filled. Aborting"
+
+    logging.info(args)
+    
+    test = MetricsDataHandler(args)
+
+    if args.schedule: # collect every min
+        schedule.every(1).minutes.do(test.collectAndSendData) 
+        while True:
+            schedule.run_pending()
+            time.sleep(1)
+    else:
+        test.collectAndSendData()
+
+
+if __name__ == "__main__":
+    main()
