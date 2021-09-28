@@ -48,16 +48,21 @@ sudo mkdir /home/vagrant/app/
 sudo chmod 777 -R /home/vagrant/app/
 cd /home/vagrant/app/
 
-sudo wget https://github.com/Alex225320/client-pyton-app/raw/main/client-app.tar
-sudo wget https://github.com/Alex225320/client-pyton-app/raw/main/collectl-4.3.1.src.tar
+sudo wget https://github.com/Alex225320/client-python-app/raw/main/client-app.tar
+sudo wget https://github.com/Alex225320/client-python-app/raw/main/collectl-4.3.1.src.tar
 
 sudo tar -C "/home/vagrant/app/" -xvf client-app.tar
 sudo tar -C "/home/vagrant/app/" -xvf collectl-4.3.1.src.tar
 sudo chmod 777 -R /home/vagrant/app/
+cd /home/vagrant/app/collectl-4.3.1/
 sudo bash /home/vagrant/app/collectl-4.3.1/INSTALL
+cd /home/vagrant/app/
 
 sudo rm -R /home/vagrant/app/collectl-4.3.1
 sudo rm -R /home/vagrant/app/collectl-4.3.1.src.tar
 sudo rm -R /home/vagrant/app/client-app.tar
 
+echo ""
+echo ""
+echo ""
 echo "To set up sending data to the server you need to change the file data_handler.py on line 55 (URL = \"http://localhost/api/insert-data-devices.php\") instead of localhost to put the ip address or domain name of the server. After that run the script with the command \"python3 data_handler.py -T -S\"."
